@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 import numpy as np, time
@@ -95,7 +95,7 @@ load(); setInterval(load,60000);
 </script></body></html>"""
 
 @app.get("/")
-def root(): return {"go":"/app"}
+def root(): return RedirectResponse("/app")
 #add for MP
 import os
 if __name__ == "__main__":
