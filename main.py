@@ -38,8 +38,7 @@ def get_shake():
     global CACHE
     if CACHE["data"] and time.time()-CACHE["time"] < 60:
         for s in CACHE["data"]:
-            if s["sta"]=="NAMM":
-                s["pga_g"]=ESP32["pga_g"]
+            if s["sta"]=="NAMM": s["pga_g"]=ESP32["pga_g"]
         return CACHE["data"]
     t2=UTCDateTime.now(); t1=t2-120; out=[]
     for s in STATIONS:
@@ -66,27 +65,14 @@ def push(pga_g: float):
 @app.get("/manifest.json")
 def manifest():
     return JSONResponse({
-        "name":"ThaiShake",
-        "short_name":"ThaiShake",
-        "start_url":"/app",
-        "display":"standalone",
-        "background_color":"#0a192f",
-        "theme_color":"#00ff88",
-        "icons":[
-            {
-                "src":"/icon.png",
-                "sizes":"512x512",
-                "type":"image/png",
-                "purpose":"any maskable"
-            }
-        ]
+        "name":"ThaiShake","short_name":"ThaiShake","start_url":"/app",
+        "display":"standalone","background_color":"#0a192f","theme_color":"#00ff88",
+        "icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
     })
 
 @app.get("/icon.png")
 def get_icon():
-    if os.path.exists("icon.png"):
-        return FileResponse("icon.png")
-    # ถ้ายังไม่ได้อัพโหลด icon.png ให้ใช้ไอค่อนสำรองไปก่อน
+    if os.path.exists("icon.png"): return FileResponse("icon.png")
     return RedirectResponse("https://cdn-icons-png.flaticon.com/512/3383/3383076.png")
 
 @app.get("/app", response_class=HTMLResponse)
@@ -95,37 +81,74 @@ def app_page():
 <html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>ThaiShake 18</title><link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:55vh}#list{height:45vh;overflow:auto;padding:10px}
-.card{background:#112240;padding:8px;margin:6px 0;border-radius:8px;display:flex;justify-content:space-between}
-.green{border-left:4px solid #00ff88}.yellow{border-left:4px solid yellow}.orange{border-left:4px solid orange}.red{border-left:4px solid red}
-#top{padding:10px;display:flex;justify-content:space-between}button{background:#00ff88;border:none;padding:8px 12px;border-radius:6px;font-weight:bold}</style>
-</head><body><div id="top"><b>🇹🇭 ThaiShake 18 สถานี</b><button onclick="load()">Refresh</button></div>
-<div id="map"></div><div id="list">Loading...</div>
+<style>
+body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:55vh}#list{height:45vh;overflow:auto;padding:10px}
+.card{background:#112240;padding:8px;margin:6px 0;border-radius:8px;display:flex;justify-content:space-between;transition:0.3s}
+.green{border-left:5px solid #00ff88}.yellow{border-left:5px solid #ffeb3b}.orange{border-left:5px solid #ff9800}.red{border-left:5px solid #ff1744}.darkred{border-left:5px solid #b71c1c; animation:pulse 0.8s infinite}
+@keyframes pulse{0%{opacity:1}50%{opacity:0.4}100%{opacity:1}}
+#top{padding:10px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:8px 12px;border-radius:6px;font-weight:bold}
+.legend{font-size:11px; padding:6px 10px; background:rgba(0,0,0,0.7); border-radius:6px; position:absolute; bottom:10px; right:10px; z-index:1000; line-height:1.6}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+</style>
+</head><body>
+<div id="top"><b>🇹🇭 ThaiShake 18 สถานี</b><button onclick="load()">🔄 Refresh</button></div>
+<div id="map" style="position:relative"></div><div id="list">Loading...</div>
 <script>
 var map=L.map('map').setView([13.5,100.8],5.5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 var markers={};
-function cls(g){ if(g>0.01) return 'red'; if(g>0.001) return 'orange'; if(g>0.0001) return 'yellow'; return 'green';}
+function getColorClass(g){
+ if(g>0.1) return 'darkred';
+ if(g>0.01) return 'red';
+ if(g>0.001) return 'orange';
+ if(g>0.0001) return 'yellow';
+ return 'green';
+}
+function getColor(g){
+ if(g>0.1) return '#b71c1c';
+ if(g>0.01) return '#ff1744';
+ if(g>0.001) return '#ff9800';
+ if(g>0.0001) return '#ffeb3b';
+ return '#00ff88';
+}
 function load(){
  fetch('/api/v1/shake').then(r=>r.json()).then(data=>{
   var html=''; data.sort((a,b)=>b.pga_g-a.pga_g);
   data.forEach(s=>{
-   if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:10}).addTo(map);
-   var c=cls(s.pga_g);
-   var rad=s.pga_g>0?Math.max(8,Math.min(22,s.pga_g*300000+8)):6;
-   markers[s.sta].setStyle({color:c,fillColor:c,fillOpacity:0.7,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g.toExponential(2)} g`);
-   html+=`<div class="card ${c}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span>${s.pga_g.toExponential(2)} g</span></div>`;
+   // *** ไอเดียของคุณ: ขนาดคงที่ ***
+   var rad = 11;
+   if(s.sta=="NAMM") rad = 15; // สถานีเราทำเด่นกว่านิดเดียว
+
+   if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map);
+   var c = getColor(s.pga_g);
+   var cls = getColorClass(s.pga_g);
+
+   markers[s.sta].setStyle({color:'#fff', weight:1, fillColor:c, fillOpacity:0.9, radius:rad})
+  .bindPopup(`<b>${s.sta}</b><br>${s.pga_g.toExponential(2)} g<br><small>${s.status}</small>`);
+
+   // กระพริบถ้าแรงมาก
+   if(cls=='darkred') markers[s.sta].setStyle({fillOpacity:1});
+
+   html+=`<div class="card ${cls}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span><b style="color:${c}">${s.pga_g.toExponential(2)} g</b></span></div>`;
   });
   document.getElementById('list').innerHTML=html;
  });
 }
 load(); setInterval(load,60000);
+
+// เพิ่ม Legend อธิบายสี
+var legend = L.control({position: 'bottomright'});
+legend.onAdd = function(map){
+ var div = L.DomUtil.create('div','legend');
+ div.innerHTML = `<span class="dot" style="background:#00ff88"></span>ปกติ<br><span class="dot" style="background:#ffeb3b"></span>เบา<br><span class="dot" style="background:#ff9800"></span>รู้สึกได้<br><span class="dot" style="background:#ff1744"></span>แรง<br><span class="dot" style="background:#b71c1c"></span>อันตราย`;
+ return div;
+};
+legend.addTo(map);
 </script></body></html>
 """
 
 @app.get("/")
-def root():
-    return RedirectResponse("/app")
+def root(): return RedirectResponse("/app")
 
 if __name__ == "__main__":
     import uvicorn
