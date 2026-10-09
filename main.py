@@ -1,8 +1,9 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 import numpy as np, time
+import os
 
 app = FastAPI(title="ThaiShake")
 client = Client("EARTHSCOPE")
@@ -26,8 +27,9 @@ STATIONS = [
     {"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
     {"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
     {"net":"TM","sta":"KHLT","lat":14.797,"lon":98.589},
-    {"net":"TM","sta":"NAMM","lat":6.9,"lon":100.54,"is_yours":True},
+    {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
+
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
 
@@ -36,7 +38,8 @@ def get_shake():
     global CACHE
     if CACHE["data"] and time.time()-CACHE["time"] < 60:
         for s in CACHE["data"]:
-            if s["sta"]=="NAMM": s["pga_g"]=ESP32["pga_g"]
+            if s["sta"]=="NAMM":
+                s["pga_g"]=ESP32["pga_g"]
         return CACHE["data"]
     t2=UTCDateTime.now(); t1=t2-120; out=[]
     for s in STATIONS:
@@ -62,7 +65,29 @@ def push(pga_g: float):
 
 @app.get("/manifest.json")
 def manifest():
-    return JSONResponse({"name":"ThaiShake","short_name":"ThaiShake","start_url":"/app","display":"standalone","background_color":"#0a192f","theme_color":"#00ff88","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3383/3383076.png","sizes":"512x512","type":"image/png"}]})
+    return JSONResponse({
+        "name":"ThaiShake",
+        "short_name":"ThaiShake",
+        "start_url":"/app",
+        "display":"standalone",
+        "background_color":"#0a192f",
+        "theme_color":"#00ff88",
+        "icons":[
+            {
+                "src":"/icon.png",
+                "sizes":"512x512",
+                "type":"image/png",
+                "purpose":"any maskable"
+            }
+        ]
+    })
+
+@app.get("/icon.png")
+def get_icon():
+    if os.path.exists("icon.png"):
+        return FileResponse("icon.png")
+    # ถ้ายังไม่ได้อัพโหลด icon.png ให้ใช้ไอค่อนสำรองไปก่อน
+    return RedirectResponse("https://cdn-icons-png.flaticon.com/512/3383/3383076.png")
 
 @app.get("/app", response_class=HTMLResponse)
 def app_page():
@@ -77,7 +102,8 @@ def app_page():
 </head><body><div id="top"><b>🇹🇭 ThaiShake 18 สถานี</b><button onclick="load()">Refresh</button></div>
 <div id="map"></div><div id="list">Loading...</div>
 <script>
-var map=L.map('map').setView([13.5,100.8],5.5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+var map=L.map('map').setView([13.5,100.8],5.5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 var markers={};
 function cls(g){ if(g>0.01) return 'red'; if(g>0.001) return 'orange'; if(g>0.0001) return 'yellow'; return 'green';}
 function load(){
@@ -85,19 +111,22 @@ function load(){
   var html=''; data.sort((a,b)=>b.pga_g-a.pga_g);
   data.forEach(s=>{
    if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:10}).addTo(map);
-   var c=cls(s.pga_g); var rad=s.pga_g>0?Math.max(8,Math.min(22,s.pga_g*300000+8)):6;
+   var c=cls(s.pga_g);
+   var rad=s.pga_g>0?Math.max(8,Math.min(22,s.pga_g*300000+8)):6;
    markers[s.sta].setStyle({color:c,fillColor:c,fillOpacity:0.7,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g.toExponential(2)} g`);
    html+=`<div class="card ${c}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span>${s.pga_g.toExponential(2)} g</span></div>`;
-  }); document.getElementById('list').innerHTML=html;
+  });
+  document.getElementById('list').innerHTML=html;
  });
 }
 load(); setInterval(load,60000);
-</script></body></html>"""
+</script></body></html>
+"""
 
 @app.get("/")
-def root(): return RedirectResponse("/app")
-#add for MP
-import os
+def root():
+    return RedirectResponse("/app")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
