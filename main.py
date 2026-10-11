@@ -2,32 +2,53 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
-import numpy as np, time
-import os
+import numpy as np, time, os
 
-app = FastAPI(title="ThaiShake")
+app = FastAPI(title="ThaiShake 41")
 client = Client("EARTHSCOPE")
 
 STATIONS = [
-    {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
-    {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
-    {"net":"TM","sta":"CMAI","lat":19.93,"lon":99.045},
-    {"net":"TM","sta":"CRAI","lat":20.23,"lon":100.37},
-    {"net":"TM","sta":"LOEI","lat":17.51,"lon":101.62},
-    {"net":"TM","sta":"MHIT","lat":19.31,"lon":97.96},
-    {"net":"TM","sta":"NAYO","lat":14.32,"lon":101.32},
-    {"net":"TM","sta":"NONG","lat":18.06,"lon":103.15},
-    {"net":"TM","sta":"PANO","lat":17.15,"lon":104.61},
-    {"net":"TM","sta":"PBKT","lat":16.57,"lon":100.97},
-    {"net":"TM","sta":"PHRA","lat":18.5,"lon":100.23},
-    {"net":"TM","sta":"PRAC","lat":12.47,"lon":99.79},
-    {"net":"TM","sta":"SKLT","lat":7.18,"lon":100.62},
-    {"net":"TM","sta":"SRDT","lat":14.39,"lon":99.12},
-    {"net":"TM","sta":"SURA","lat":9.17,"lon":99.63},
-    {"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
-    {"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
-    {"net":"TM","sta":"KHLT","lat":14.797,"lon":98.589},
-    {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
+{"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
+{"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
+{"net":"TM","sta":"CMAI","lat":19.93,"lon":99.045},
+{"net":"TM","sta":"CRAI","lat":20.23,"lon":100.37},
+{"net":"TM","sta":"LOEI","lat":17.51,"lon":101.62},
+{"net":"TM","sta":"MHIT","lat":19.31,"lon":97.96},
+{"net":"TM","sta":"NAYO","lat":14.32,"lon":101.32},
+{"net":"TM","sta":"NONG","lat":18.06,"lon":103.15},
+{"net":"TM","sta":"PANO","lat":17.15,"lon":104.61},
+{"net":"TM","sta":"PBKT","lat":16.57,"lon":100.97},
+{"net":"TM","sta":"PHRA","lat":18.5,"lon":100.23},
+{"net":"TM","sta":"PRAC","lat":12.47,"lon":99.79},
+{"net":"TM","sta":"SKLT","lat":7.18,"lon":100.62},
+{"net":"TM","sta":"SRDT","lat":14.39,"lon":99.12},
+{"net":"TM","sta":"SURA","lat":9.17,"lon":99.63},
+{"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
+{"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
+{"net":"TM","sta":"KHLT","lat":14.797,"lon":98.589},
+{"net":"TM","sta":"BKLT","lat":15.5,"lon":101.0},
+{"net":"TM","sta":"BKMS","lat":14.2,"lon":102.1},
+{"net":"TM","sta":"CNX","lat":18.78,"lon":98.98},
+{"net":"TM","sta":"LAMP","lat":18.28,"lon":99.49},
+{"net":"TM","sta":"KUK","lat":13.73,"lon":100.77},
+{"net":"TM","sta":"PKK","lat":11.8,"lon":99.79},
+{"net":"TM","sta":"CBRI","lat":13.0,"lon":101.0},
+{"net":"TM","sta":"RNGR","lat":12.68,"lon":101.27},
+{"net":"TM","sta":"TRAT","lat":12.23,"lon":102.51},
+{"net":"TM","sta":"SUTT","lat":15.0,"lon":102.0},
+{"net":"TM","sta":"UDON","lat":17.41,"lon":102.78},
+{"net":"TM","sta":"KHON","lat":16.43,"lon":102.83},
+{"net":"TM","sta":"ROET","lat":16.05,"lon":103.65},
+{"net":"TM","sta":"YALA","lat":6.54,"lon":101.28},
+{"net":"TM","sta":"NARA","lat":6.43,"lon":101.82},
+{"net":"TM","sta":"PATT","lat":7.88,"lon":98.39},
+{"net":"TM","sta":"KRBI","lat":8.06,"lon":98.91},
+{"net":"TM","sta":"TRNG","lat":7.55,"lon":99.61},
+{"net":"TM","sta":"STUN","lat":6.61,"lon":100.07},
+{"net":"TM","sta":"SONG","lat":7.2,"lon":100.59},
+{"net":"TM","sta":"PHTL","lat":7.61,"lon":100.08},
+{"net":"TM","sta":"NKSI","lat":8.43,"lon":99.96},
+{"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
 
 CACHE = {"data":None,"time":0}
@@ -38,12 +59,12 @@ def get_shake():
     global CACHE
     if CACHE["data"] and time.time()-CACHE["time"] < 60:
         for s in CACHE["data"]:
-            if s["sta"]=="NAMM": s["pga_g"]=ESP32["pga_g"]
+            if s["sta"]=="NAMOM": s["pga_g"]=ESP32["pga_g"]
         return CACHE["data"]
     t2=UTCDateTime.now(); t1=t2-120; out=[]
     for s in STATIONS:
         if s.get("is_yours"):
-            out.append({**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMM"})
+            out.append({**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"})
             continue
         try:
             inv=client.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2)
@@ -53,7 +74,7 @@ def get_shake():
             if pga>1: pga=0
             out.append({**s,"pga_g":pga,"pga_gal":pga*980.665,"status":"real ACC"})
         except:
-            out.append({**s,"pga_g":0,"pga_gal":0,"status":"no data"})
+            out.append({**s,"pga_g":None,"pga_gal":0,"status":"offline"})
     CACHE={"data":out,"time":time.time()}
     return out
 
@@ -64,11 +85,7 @@ def push(pga_g: float):
 
 @app.get("/manifest.json")
 def manifest():
-    return JSONResponse({
-        "name":"ThaiShake","short_name":"ThaiShake","start_url":"/app",
-        "display":"standalone","background_color":"#0a192f","theme_color":"#00ff88",
-        "icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
-    })
+    return JSONResponse({"name":"ThaiShake 41","short_name":"ThaiShake","start_url":"/app","display":"standalone","background_color":"#0a192f","theme_color":"#00ff88","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]})
 
 @app.get("/icon.png")
 def get_icon():
@@ -79,77 +96,83 @@ def get_icon():
 def app_page():
     return """
 <html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>ThaiShake 18</title><link rel="manifest" href="/manifest.json">
+<title>ThaiShake 41 Stations</title><link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:55vh}#list{height:45vh;overflow:auto;padding:10px}
-.card{background:#112240;padding:8px;margin:6px 0;border-radius:8px;display:flex;justify-content:space-between;transition:0.3s}
-.green{border-left:5px solid #00ff88}.yellow{border-left:5px solid #ffeb3b}.orange{border-left:5px solid #ff9800}.red{border-left:5px solid #ff1744}.darkred{border-left:5px solid #b71c1c; animation:pulse 0.8s infinite}
-@keyframes pulse{0%{opacity:1}50%{opacity:0.4}100%{opacity:1}}
-#top{padding:10px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:8px 12px;border-radius:6px;font-weight:bold}
-.legend{font-size:11px; padding:6px 10px; background:rgba(0,0,0,0.7); border-radius:6px; position:absolute; bottom:10px; right:10px; z-index:1000; line-height:1.6}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:58vh}#list{height:42vh;overflow:auto;padding:10px}
+.card{background:#112240;padding:6px;margin:4px 0;border-radius:6px;display:flex;justify-content:space-between;font-size:13px}
+.green{border-left:4px solid #00C853}.yellow{border-left:4px solid #FFD600}.orange{border-left:4px solid #FF9100}.red{border-left:4px solid #FF4500}.darkred{border-left:4px solid #FF0000}.black{border-left:4px solid #2F2F2F}
+#top{padding:8px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:6px 10px;border-radius:5px;font-weight:bold}
+.legend{background:rgba(255,255,255,0.88);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px;border:none;box-shadow:0 0 6px rgba(0,0,0,0.2)}
+.legend i{width:12px;height:12px;float:left;margin-right:6px;border-radius:50%;margin-top:2px}
+.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,Arial,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}
 </style>
 </head><body>
-<div id="top"><b>🇹🇭 ThaiShake 18 สถานี</b><button onclick="load()">🔄 Refresh</button></div>
-<div id="map" style="position:relative"></div><div id="list">Loading...</div>
+<div id="top"><b>🇹🇭 ThaiShake 41 Stations - NAMOM v4</b><button onclick="load()">🔄 Refresh</button><span id="count" style="font-size:12px"></span></div>
+<div id="map"></div><div id="list">Loading 41 stations...</div>
 <script>
-var map=L.map('map').setView([13.5,100.8],5.5);
+var map=L.map('map').setView([13.2,101.0],5.8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 var markers={};
-function getColorClass(g){
- if(g>0.1) return 'darkred';
- if(g>0.01) return 'red';
- if(g>0.001) return 'orange';
- if(g>0.0001) return 'yellow';
- return 'green';
-}
 function getColor(g){
- if(g>0.1) return '#b71c1c';
- if(g>0.01) return '#ff1744';
- if(g>0.001) return '#ff9800';
- if(g>0.0001) return '#ffeb3b';
- return '#00ff88';
+ if(g==null) return "#2F2F2F";
+ var gal = g*980.665;
+ if(gal<2.9) return "#00C853";
+ if(gal<29.4) return "#FFD600";
+ if(gal<60.7) return "#FF9100";
+ if(gal<200.9) return "#FF4500";
+ if(gal<392) return "#FF0000";
+ return "#8B0000";
+}
+function getCls(g){
+ if(g==null) return "black";
+ var gal = g*980.665;
+ if(gal<2.9) return "green";
+ if(gal<29.4) return "yellow";
+ if(gal<60.7) return "orange";
+ if(gal<200.9) return "red";
+ return "darkred";
 }
 function load(){
  fetch('/api/v1/shake').then(r=>r.json()).then(data=>{
-  var html=''; data.sort((a,b)=>b.pga_g-a.pga_g);
+  var html=''; data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));
+  document.getElementById('count').innerText = data.length+' stations';
   data.forEach(s=>{
-   // *** ไอเดียของคุณ: ขนาดคงที่ ***
-   var rad = 11;
-   if(s.sta=="NAMM") rad = 15; // สถานีเราทำเด่นกว่านิดเดียว
-
+   var rad=8; if(s.sta=="NAMOM") rad=14;
    if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map);
-   var c = getColor(s.pga_g);
-   var cls = getColorClass(s.pga_g);
-
-   markers[s.sta].setStyle({color:'#fff', weight:1, fillColor:c, fillOpacity:0.9, radius:rad})
-  .bindPopup(`<b>${s.sta}</b><br>${s.pga_g.toExponential(2)} g<br><small>${s.status}</small>`);
-
-   // กระพริบถ้าแรงมาก
-   if(cls=='darkred') markers[s.sta].setStyle({fillOpacity:1});
-
-   html+=`<div class="card ${cls}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span><b style="color:${c}">${s.pga_g.toExponential(2)} g</b></span></div>`;
+   var c=getColor(s.pga_g); var cls=getCls(s.pga_g);
+   markers[s.sta].setStyle({fillColor:c, color:c, weight:0, fillOpacity:0.9, radius:rad, stroke:false})
+  .bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'offline'}<br>${s.status}`);
+   var pgaText = s.pga_g!=null? s.pga_g.toExponential(2)+' g' : 'offline';
+   html+=`<div class="card ${cls}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${pgaText}</b></span></div>`;
   });
   document.getElementById('list').innerHTML=html;
  });
 }
 load(); setInterval(load,60000);
 
-// เพิ่ม Legend อธิบายสี
-var legend = L.control({position: 'bottomright'});
-legend.onAdd = function(map){
+// Watermark กันแอบอ้างกลางอ่าวไทย
+var gulfIcon = L.divIcon({className:'', html:'<div class="watermark-gulf">ThaiShake NAMOM</div>', iconSize:[460,50], iconAnchor:[230,25]});
+L.marker([10.8, 100.7], {icon:gulfIcon, interactive:false, keyboard:false}).addTo(map);
+
+// Legend พื้นขาว 7 ระดับ + offline
+var legend = L.control({position:'bottomright'});
+legend.onAdd = function(){
  var div = L.DomUtil.create('div','legend');
- div.innerHTML = `<span class="dot" style="background:#00ff88"></span>ปกติ<br><span class="dot" style="background:#ffeb3b"></span>เบา<br><span class="dot" style="background:#ff9800"></span>รู้สึกได้<br><span class="dot" style="background:#ff1744"></span>แรง<br><span class="dot" style="background:#b71c1c"></span>อันตราย`;
+ div.innerHTML = '<b>PGA (gal)</b><br>'+
+ '<i style="background:#00C853"></i> 0-2.9 เขียว ปลอดภัย<br>'+
+ '<i style="background:#FFD600"></i> 2.9-29.4 เหลือง รู้สึกได้<br>'+
+ '<i style="background:#FF9100"></i> 29.4-60.7 ส้ม เริ่มแรง<br>'+
+ '<i style="background:#FF4500"></i> 60.7-200.9 ส้มแดง แรง<br>'+
+ '<i style="background:#FF0000"></i> 200.9-392 แดง แรงมาก<br>'+
+ '<i style="background:#8B0000"></i> >392 เข้ม อันตรายรุนแรง<br>'+
+ '<i style="background:#2F2F2F"></i> offline เทาดำ';
  return div;
 };
 legend.addTo(map);
 </script></body></html>
 """
-
 @app.get("/")
 def root(): return RedirectResponse("/app")
-
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    import uvicorn; uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
