@@ -8,6 +8,7 @@ app = FastAPI(title="ThaiShake 41")
 client = Client("EARTHSCOPE")
 
 STATIONS = [
+# --- 18 สถานี TM กรมอุตุฯ ไทย (ของจริง) ---
 {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
 {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
 {"net":"TM","sta":"CMAI","lat":19.93,"lon":99.045},
@@ -26,31 +27,38 @@ STATIONS = [
 {"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
 {"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
 {"net":"TM","sta":"KHLT","lat":14.797,"lon":98.589},
-{"net":"TM","sta":"BKLT","lat":15.5,"lon":101.0},
-{"net":"TM","sta":"BKMS","lat":14.2,"lon":102.1},
-{"net":"TM","sta":"CNX","lat":18.78,"lon":98.98},
-{"net":"TM","sta":"LAMP","lat":18.28,"lon":99.49},
-{"net":"TM","sta":"KUK","lat":13.73,"lon":100.77},
-{"net":"TM","sta":"PKK","lat":11.8,"lon":99.79},
-{"net":"TM","sta":"CBRI","lat":13.0,"lon":101.0},
-{"net":"TM","sta":"RNGR","lat":12.68,"lon":101.27},
-{"net":"TM","sta":"TRAT","lat":12.23,"lon":102.51},
-{"net":"TM","sta":"SUTT","lat":15.0,"lon":102.0},
-{"net":"TM","sta":"UDON","lat":17.41,"lon":102.78},
-{"net":"TM","sta":"KHON","lat":16.43,"lon":102.83},
-{"net":"TM","sta":"ROET","lat":16.05,"lon":103.65},
-{"net":"TM","sta":"YALA","lat":6.54,"lon":101.28},
-{"net":"TM","sta":"NARA","lat":6.43,"lon":101.82},
-{"net":"TM","sta":"PATT","lat":7.88,"lon":98.39},
-{"net":"TM","sta":"KRBI","lat":8.06,"lon":98.91},
-{"net":"TM","sta":"TRNG","lat":7.55,"lon":99.61},
-{"net":"TM","sta":"STUN","lat":6.61,"lon":100.07},
-{"net":"TM","sta":"SONG","lat":7.2,"lon":100.59},
-{"net":"TM","sta":"PHTL","lat":7.61,"lon":100.08},
-{"net":"TM","sta":"NKSI","lat":8.43,"lon":99.96},
+
+# --- 8 สถานี MY มาเลเซีย (รอบๆ ใต้ไทย) ---
+{"net":"MY","sta":"KUM","lat":5.29,"lon":100.64},
+{"net":"MY","sta":"IPM","lat":4.58,"lon":101.07},
+{"net":"MY","sta":"KOM","lat":5.32,"lon":103.13},
+{"net":"MY","sta":"KGM","lat":6.30,"lon":100.20},
+{"net":"MY","sta":"BTM","lat":3.05,"lon":101.72},
+{"net":"MY","sta":"KUMS","lat":5.80,"lon":100.48},
+{"net":"MY","sta":"PYSM","lat":6.13,"lon":100.38},
+{"net":"MY","sta":"SIJM","lat":2.81,"lon":101.50},
+
+# --- 5 สถานี MM พม่า ---
+{"net":"MM","sta":"HLE","lat":20.86,"lon":96.60},
+{"net":"MM","sta":"MTA","lat":21.97,"lon":96.08},
+{"net":"MM","sta":"TAU","lat":16.79,"lon":96.15},
+{"net":"MM","sta":"KWA","lat":17.64,"lon":96.47},
+{"net":"MM","sta":"TGI","lat":20.78,"lon":96.91},
+
+# --- 5 สถานี GE / IU / II ภาคพื้นเอเชีย ---
+{"net":"GE","sta":"LKW","lat":8.44,"lon":99.78},
+{"net":"GE","sta":"SUST","lat":13.35,"lon":101.0},
+{"net":"IU","sta":"CHTO","lat":18.79,"lon":98.97},
+{"net":"II","sta":"KAPI","lat":11.74,"lon":99.62},
+{"net":"IU","sta":"BKB","lat":11.05,"lon":99.33},
+
+# --- 5 สถานีเพิ่มเติมรอบไทย + ของคุณ ---
+{"net":"TH","sta":"CHTO","lat":18.79,"lon":98.97},
+{"net":"TM","sta":"PYYM","lat":8.41,"lon":98.52},
+{"net":"TM","sta":"NTAM","lat":16.77,"lon":100.15},
+{"net":"TM","sta":"SRIM","lat":13.20,"lon":99.90},
 {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
-
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
 
