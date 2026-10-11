@@ -3,12 +3,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, File
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 import numpy as np, time, os
-
 app = FastAPI(title="ThaiShake 41")
 client = Client("EARTHSCOPE")
-
 STATIONS = [
-# --- 18 สถานี TM กรมอุตุฯ ไทย  ---
 {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
 {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
 {"net":"TM","sta":"CMAI","lat":19.93,"lon":99.045},
@@ -26,46 +23,33 @@ STATIONS = [
 {"net":"TM","sta":"SURA","lat":9.17,"lon":99.63},
 {"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
 {"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
-{"net":"TM","sta":"SRIT","lat":8.595,"lon":99.601},    
-
-# --- 5 สถานี MY มาเลเซีย (รอบๆ ใต้ไทย) ---
+{"net":"TM","sta":"SRIT","lat":8.595,"lon":99.601},
 {"net":"MY","sta":"KUM","lat":5.29,"lon":100.64},
 {"net":"MY","sta":"IPM","lat":4.47,"lon":101.02},
 {"net":"MY","sta":"KOM","lat":1.792,"lon":103.846},
 {"net":"MY","sta":"KTM","lat":5.328,"lon":103.135},
 {"net":"MY","sta":"FRM","lat":3.23,"lon":101.63},
-
-
-# --- 9 สถานี MM พม่า ---
 {"net":"MM","sta":"SIM","lat":20.1332,"lon":92.885},
 {"net":"MM","sta":"NGU","lat":21.205,"lon":94.916},
 {"net":"MM","sta":"HKA","lat":22.642,"lon":93.599},
 {"net":"MM","sta":"MDY","lat":22.016,"lon":96.112},
 {"net":"MM","sta":"TGI","lat":20.76,"lon":97.03},
-{"net":"MM","sta":"TMU","lat":24.2296,"lon":94.300},  
+{"net":"MM","sta":"TMU","lat":24.2296,"lon":94.300},
 {"net":"MM","sta":"KTA","lat":24.179,"lon":96.340},
 {"net":"MM","sta":"YGN","lat":16.864,"lon":96.153},
-{"net":"MM","sta":"KTN","lat":21.285,"lon":99.589},   
-
-    
-    
-
-# --- 6 สถานี GE / IN / PS Sumatra ---
+{"net":"MM","sta":"KTN","lat":21.285,"lon":99.589},
 {"net":"GE","sta":"BKNI","lat":0.3262,"lon":101.0396},
 {"net":"GE","sta":"LHMI","lat":5.2288,"lon":96.9472},
 {"net":"IN","sta":"PBA","lat":11.6557,"lon":92.743919},
 {"net":"PS","sta":"PSI","lat":2.6938,"lon":98.923},
 {"net":"GE","sta":"GSI","lat":1.3039,"lon":97.5755},
-{"net":"GE","sta":"NPW","lat":19.778,"lon":96.137},    
-
-# --- 5 สถานีเพิ่มเติมรอบไทย + ของคุณ ---
+{"net":"GE","sta":"NPW","lat":19.778,"lon":96.137},
 {"net":"RM","sta":"DVL","lat":11.952,"lon":108.481},
-{"net":"RM","sta":"SLV","lat":21.325,"lon":103.906,
+{"net":"RM","sta":"SLV","lat":21.325,"lon":103.906},
 {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
-
 @app.get("/api/v1/shake")
 def get_shake():
     global CACHE
@@ -73,6 +57,15 @@ def get_shake():
         for s in CACHE["data"]:
             if s["sta"]=="NAMOM": s["pga_g"]=ESP32["pga_g"]
         return CACHE["data"]
+    if not CACHE["data"]:
+        temp=[]
+        for s in STATIONS:
+            if s.get("is_yours"):
+                temp.append({**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"})
+            else:
+                temp.append({**s,"pga_g":None,"pga_gal":0,"status":"loading..."})
+        CACHE={"data":temp,"time":time.time()-55}
+        return temp
     t2=UTCDateTime.now(); t1=t2-120; out=[]
     for s in STATIONS:
         if s.get("is_yours"):
@@ -89,21 +82,17 @@ def get_shake():
             out.append({**s,"pga_g":None,"pga_gal":0,"status":"offline"})
     CACHE={"data":out,"time":time.time()}
     return out
-
 @app.get("/api/v1/push")
 def push(pga_g: float):
     ESP32["pga_g"]=pga_g; ESP32["updated"]=time.time(); CACHE["time"]=0
     return {"ok":True}
-
 @app.get("/manifest.json")
 def manifest():
     return JSONResponse({"name":"ThaiShake 41","short_name":"ThaiShake","start_url":"/app","display":"standalone","background_color":"#0a192f","theme_color":"#00ff88","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]})
-
 @app.get("/icon.png")
 def get_icon():
     if os.path.exists("icon.png"): return FileResponse("icon.png")
     return RedirectResponse("https://cdn-icons-png.flaticon.com/512/3383/3383076.png")
-
 @app.get("/app", response_class=HTMLResponse)
 def app_page():
     return """
@@ -113,75 +102,22 @@ def app_page():
 <style>
 body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:58vh}#list{height:42vh;overflow:auto;padding:10px}
 .card{background:#112240;padding:6px;margin:4px 0;border-radius:6px;display:flex;justify-content:space-between;font-size:13px}
-.green{border-left:4px solid #00C853}.yellow{border-left:4px solid #FFD600}.orange{border-left:4px solid #FF9100}.red{border-left:4px solid #FF4500}.darkred{border-left:4px solid #FF0000}.black{border-left:4px solid #2F2F2F}
 #top{padding:8px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:6px 10px;border-radius:5px;font-weight:bold}
-.legend{background:rgba(255,255,255,0.88);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px;border:none;box-shadow:0 0 6px rgba(0,0,0,0.2)}
+.legend{background:rgba(255,255,255,0.95);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px;box-shadow:0 0 6px rgba(0,0,0,0.2)}
 .legend i{width:12px;height:12px;float:left;margin-right:6px;border-radius:50%;margin-top:2px}
-.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,Arial,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}
-</style>
-</head><body>
-<div id="top"><b>🇹🇭 ThaiShake 41 Stations - NAMOM v4</b><button onclick="load()">🔄 Refresh</button><span id="count" style="font-size:12px"></span></div>
+.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}
+</style></head><body>
+<div id="top"><b>🇹🇭 ThaiShake 41 - NAMOM v4</b><button onclick="load()">🔄 Refresh</button><span id="count"></span></div>
 <div id="map"></div><div id="list">Loading 41 stations...</div>
 <script>
-var map=L.map('map').setView([13.2,101.0],5.8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+var map=L.map('map').setView([13.2,101.0],5.8); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 var markers={};
-function getColor(g){
- if(g==null) return "#2F2F2F";
- var gal = g*980.665;
- if(gal<2.9) return "#00C853";
- if(gal<29.4) return "#FFD600";
- if(gal<60.7) return "#FF9100";
- if(gal<200.9) return "#FF4500";
- if(gal<392) return "#FF0000";
- return "#8B0000";
-}
-function getCls(g){
- if(g==null) return "black";
- var gal = g*980.665;
- if(gal<2.9) return "green";
- if(gal<29.4) return "yellow";
- if(gal<60.7) return "orange";
- if(gal<200.9) return "red";
- return "darkred";
-}
-function load(){
- fetch('/api/v1/shake').then(r=>r.json()).then(data=>{
-  var html=''; data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));
-  document.getElementById('count').innerText = data.length+' stations';
-  data.forEach(s=>{
-   var rad=8; if(s.sta=="NAMOM") rad=14;
-   if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map);
-   var c=getColor(s.pga_g); var cls=getCls(s.pga_g);
-   markers[s.sta].setStyle({fillColor:c, color:c, weight:0, fillOpacity:0.9, radius:rad, stroke:false})
-  .bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'offline'}<br>${s.status}`);
-   var pgaText = s.pga_g!=null? s.pga_g.toExponential(2)+' g' : 'offline';
-   html+=`<div class="card ${cls}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${pgaText}</b></span></div>`;
-  });
-  document.getElementById('list').innerHTML=html;
- });
-}
+function getColor(g){ if(g==null) return "#2F2F2F"; var gal=g*980.665; if(gal<2.9) return "#00C853"; if(gal<29.4) return "#FFD600"; if(gal<60.7) return "#FF9100"; if(gal<200.9) return "#FF4500"; if(gal<392) return "#FF0000"; return "#8B0000"; }
+function load(){ fetch('/api/v1/shake').then(r=>r.json()).then(data=>{ var html=''; data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1)); document.getElementById('count').innerText=data.length+' stations'; data.forEach(s=>{ var rad=s.sta=="NAMOM"?14:8; if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map); var c=getColor(s.pga_g); markers[s.sta].setStyle({fillColor:c,color:c,weight:0,fillOpacity:0.9,radius:rad,stroke:false}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'offline'}<br>${s.status}`); html+=`<div class="card" style="border-left:4px solid ${c}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'offline'}</b></span></div>`; }); document.getElementById('list').innerHTML=html; }); }
 load(); setInterval(load,60000);
-
-// Watermark กันแอบอ้างกลางอ่าวไทย
-var gulfIcon = L.divIcon({className:'', html:'<div class="watermark-gulf">ThaiShake NAMOM</div>', iconSize:[460,50], iconAnchor:[230,25]});
-L.marker([10.8, 100.7], {icon:gulfIcon, interactive:false, keyboard:false}).addTo(map);
-
-// Legend พื้นขาว 7 ระดับ + offline
-var legend = L.control({position:'bottomright'});
-legend.onAdd = function(){
- var div = L.DomUtil.create('div','legend');
- div.innerHTML = '<b>PGA (gal)</b><br>'+
- '<i style="background:#00C853"></i> 0-2.9 เขียว ปลอดภัย<br>'+
- '<i style="background:#FFD600"></i> 2.9-29.4 เหลือง รู้สึกได้<br>'+
- '<i style="background:#FF9100"></i> 29.4-60.7 ส้ม เริ่มแรง<br>'+
- '<i style="background:#FF4500"></i> 60.7-200.9 ส้มแดง แรง<br>'+
- '<i style="background:#FF0000"></i> 200.9-392 แดง แรงมาก<br>'+
- '<i style="background:#8B0000"></i> >392 เข้ม อันตรายรุนแรง<br>'+
- '<i style="background:#2F2F2F"></i> offline เทาดำ';
- return div;
-};
-legend.addTo(map);
+var gulfIcon=L.divIcon({className:'',html:'<div class="watermark-gulf">ThaiShake NAMOM</div>',iconSize:[460,50],iconAnchor:[230,25]});
+L.marker([10.8,100.7],{icon:gulfIcon,interactive:false}).addTo(map);
+var legend=L.control({position:'bottomright'}); legend.onAdd=function(){var d=L.DomUtil.create('div','legend'); d.innerHTML='<b>PGA (gal)</b><br><i style="background:#00C853"></i>0-2.9 เขียว<br><i style="background:#FFD600"></i>2.9-29.4 เหลือง<br><i style="background:#FF9100"></i>29.4-60.7 ส้ม<br><i style="background:#FF4500"></i>60.7-200.9 ส้มแดง<br><i style="background:#FF0000"></i>200.9-392 แดง<br><i style="background:#8B0000"></i>>392 เข้ม<br><i style="background:#2F2F2F"></i>offline'; return d;}; legend.addTo(map);
 </script></body></html>
 """
 @app.get("/")
