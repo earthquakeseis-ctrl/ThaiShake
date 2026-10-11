@@ -8,7 +8,7 @@ app = FastAPI(title="ThaiShake 41")
 client = Client("EARTHSCOPE")
 
 STATIONS = [
-# --- 18 สถานี TM กรมอุตุฯ ไทย (ของจริง) ---
+# --- 18 สถานี TM กรมอุตุฯ ไทย  ---
 {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
 {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
 {"net":"TM","sta":"CMAI","lat":19.93,"lon":99.045},
