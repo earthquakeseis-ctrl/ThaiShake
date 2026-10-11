@@ -6,7 +6,7 @@ import numpy as np, time, os, threading
 
 app = FastAPI(title="ThaiShake 41")
 
-# --- CLIENTS ---
+# --- CLIENTS Geofon---
 CLIENTS = {
     "GE": Client("GEOFON"),
 }
