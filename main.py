@@ -26,37 +26,41 @@ STATIONS = [
 {"net":"TM","sta":"SURA","lat":9.17,"lon":99.63},
 {"net":"TM","sta":"TMDB","lat":13.67,"lon":100.61},
 {"net":"TM","sta":"UBPT","lat":15.28,"lon":105.47},
-{"net":"TM","sta":"KHLT","lat":14.797,"lon":98.589},
+{"net":"TM","sta":"SRIT","lat":8.595,"lon":99.601},    
 
-# --- 8 สถานี MY มาเลเซีย (รอบๆ ใต้ไทย) ---
+# --- 5 สถานี MY มาเลเซีย (รอบๆ ใต้ไทย) ---
 {"net":"MY","sta":"KUM","lat":5.29,"lon":100.64},
-{"net":"MY","sta":"IPM","lat":4.58,"lon":101.07},
-{"net":"MY","sta":"KOM","lat":5.32,"lon":103.13},
-{"net":"MY","sta":"KGM","lat":6.30,"lon":100.20},
-{"net":"MY","sta":"BTM","lat":3.05,"lon":101.72},
-{"net":"MY","sta":"KUMS","lat":5.80,"lon":100.48},
-{"net":"MY","sta":"PYSM","lat":6.13,"lon":100.38},
-{"net":"MY","sta":"SIJM","lat":2.81,"lon":101.50},
+{"net":"MY","sta":"IPM","lat":4.47,"lon":101.02},
+{"net":"MY","sta":"KOM","lat":1.792,"lon":103.846},
+{"net":"MY","sta":"KTM","lat":5.328,"lon":103.135},
+{"net":"MY","sta":"FRM","lat":3.23,"lon":101.63},
 
-# --- 5 สถานี MM พม่า ---
-{"net":"MM","sta":"HLE","lat":20.86,"lon":96.60},
-{"net":"MM","sta":"MTA","lat":21.97,"lon":96.08},
-{"net":"MM","sta":"TAU","lat":16.79,"lon":96.15},
-{"net":"MM","sta":"KWA","lat":17.64,"lon":96.47},
-{"net":"MM","sta":"TGI","lat":20.78,"lon":96.91},
 
-# --- 5 สถานี GE / IU / II ภาคพื้นเอเชีย ---
-{"net":"GE","sta":"LKW","lat":8.44,"lon":99.78},
-{"net":"GE","sta":"SUST","lat":13.35,"lon":101.0},
-{"net":"IU","sta":"CHTO","lat":18.79,"lon":98.97},
-{"net":"II","sta":"KAPI","lat":11.74,"lon":99.62},
-{"net":"IU","sta":"BKB","lat":11.05,"lon":99.33},
+# --- 9 สถานี MM พม่า ---
+{"net":"MM","sta":"SIM","lat":20.1332,"lon":92.885},
+{"net":"MM","sta":"NGU","lat":21.205,"lon":94.916},
+{"net":"MM","sta":"HKA","lat":22.642,"lon":93.599},
+{"net":"MM","sta":"MDY","lat":22.016,"lon":96.112},
+{"net":"MM","sta":"TGI","lat":20.76,"lon":97.03},
+{"net":"MM","sta":"TMU","lat":24.2296,"lon":94.300},  
+{"net":"MM","sta":"KTA","lat":24.179,"lon":96.340},
+{"net":"MM","sta":"YGN","lat":16.864,"lon":96.153},
+{"net":"MM","sta":"KTN","lat":21.285,"lon":99.589},   
+
+    
+    
+
+# --- 6 สถานี GE / IN / PS Sumatra ---
+{"net":"GE","sta":"BKNI","lat":0.3262,"lon":101.0396},
+{"net":"GE","sta":"LHMI","lat":5.2288,"lon":96.9472},
+{"net":"IN","sta":"PBA","lat":11.6557,"lon":92.743919},
+{"net":"PS","sta":"PSI","lat":2.6938,"lon":98.923},
+{"net":"GE","sta":"GSI","lat":1.3039,"lon":97.5755},
+{"net":"GE","sta":"NPW","lat":19.778,"lon":96.137},    
 
 # --- 5 สถานีเพิ่มเติมรอบไทย + ของคุณ ---
-{"net":"TH","sta":"CHTO","lat":18.79,"lon":98.97},
-{"net":"TM","sta":"PYYM","lat":8.41,"lon":98.52},
-{"net":"TM","sta":"NTAM","lat":16.77,"lon":100.15},
-{"net":"TM","sta":"SRIM","lat":13.20,"lon":99.90},
+{"net":"RM","sta":"DVL","lat":11.952,"lon":108.481},
+{"net":"RM","sta":"SLV","lat":21.325,"lon":103.906,
 {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
 CACHE = {"data":None,"time":0}
