@@ -6,7 +6,7 @@ import numpy as np, time, os, threading
 app = FastAPI(title="ThaiShake 41")
 CLIENTS = {"GE": Client("GEOFON")}
 def get_client(net): return CLIENTS.get(net, Client("EARTHSCOPE"))
-#Stations add CH
+# Stations add CH for faster 
 STATIONS = [
     {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35,"chan":"HHZ"},
     {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476,"chan":"HHZ"},
