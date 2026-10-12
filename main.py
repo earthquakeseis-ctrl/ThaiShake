@@ -86,7 +86,7 @@ def fetch_one(s):
 def fetch_all():
     global CACHE
     out=[]
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futs={ex.submit(fetch_one,s):s for s in STATIONS}
         for f in as_completed(futs):
             out.append(f.result())
