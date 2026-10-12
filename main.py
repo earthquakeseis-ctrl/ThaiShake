@@ -11,7 +11,7 @@ def get_client(net):
     try:
         if net=="GE":
             return CLIENTS["GE"]
-        return Client("IRIS")
+        return Client("EARTHSCOPE")
     except:
         try:
             return Client("EARTHSCOPE")
@@ -70,7 +70,7 @@ def fetch_one(s):
     try:
         c = get_client(s["net"])
         t2=UTCDateTime.now()
-        t1=t2-600
+        t1=t2-3600
         st=None
         for ch in ["HHZ","BHZ","EHZ","HNZ"]:
             try:
