@@ -4,13 +4,10 @@ from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 import numpy as np, time, os, threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 app = FastAPI(title="ThaiShake 41")
-
 CLIENTS = {"GE": Client("GEOFON")}
 def get_client(net):
     return CLIENTS.get(net, Client("EARTHSCOPE"))
-
 STATIONS = [
     {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35},
     {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476},
@@ -54,35 +51,38 @@ STATIONS = [
     {"net":"RM","sta":"SLV","lat":21.325,"lon":103.906},
     {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True},
 ]
-
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
-
 def fetch_one(s):
     if s.get("is_yours"):
         return {**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"}
     try:
         c = get_client(s["net"])
-        t2=UTCDateTime.now(); t1=t2-120
-        try:
-            inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2, timeout=5)
-        except:
-            inv=c.get_stations(network=s["net"],station=s["sta"],level="response", timeout=5)
-        st=None
-        for ch in ["HHZ","BHZ","EHZ","HNZ"]:
+        t2=UTCDateTime.now()
+        for sec in [600, 1200]:
+            t1=t2-sec
             try:
-                st=c.get_waveforms(s["net"],s["sta"],"*","%s"%ch,t1,t2, timeout=5)
-                if len(st)>0: break
-            except: continue
-        if st is None or len(st)==0:
-            return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
-        st.remove_response(inventory=inv, output="ACC", pre_filt=(0.1,0.2,45,50))
-        pga=float(np.max(np.abs(st[0].data))/9.80665)
-        if pga>1 or np.isnan(pga) or pga==0: pga=0.00001
-        return {**s,"pga_g":pga,"pga_gal":pga*980.665,"status":"ONLINE"}
+                try:
+                    inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2, timeout=8)
+                except:
+                    inv=c.get_stations(network=s["net"],station=s["sta"],level="response", timeout=8)
+                st=None
+                for ch in ["HHZ","BHZ","EHZ","HNZ"]:
+                    try:
+                        st=c.get_waveforms(s["net"],s["sta"],"*","%s"%ch,t1,t2, timeout=8)
+                        if len(st)>0: break
+                    except: continue
+                if st is None or len(st)==0:
+                    continue
+                st.remove_response(inventory=inv, output="ACC", pre_filt=(0.1,0.2,45,50))
+                pga=float(np.max(np.abs(st[0].data))/9.80665)
+                if pga>1 or np.isnan(pga) or pga==0: pga=0.00001
+                return {**s,"pga_g":pga,"pga_gal":pga*980.665,"status":"ONLINE"}
+            except:
+                continue
+        return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
     except:
         return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
-
 def fetch_all():
     global CACHE
     out=[]
@@ -91,7 +91,6 @@ def fetch_all():
         for f in as_completed(futs):
             out.append(f.result())
     CACHE={"data":out,"time":time.time()}
-
 @app.get("/api/v1/shake")
 def get_shake():
     if CACHE["data"]:
@@ -110,27 +109,23 @@ def get_shake():
     CACHE["data"]=temp; CACHE["time"]=time.time()-70
     threading.Thread(target=fetch_all, daemon=True).start()
     return temp
-
 @app.get("/api/v1/push")
 def push(pga_g: float):
     ESP32["pga_g"]=pga_g; ESP32["updated"]=time.time(); CACHE["time"]=0
     return {"ok":True}
-
 @app.get("/manifest.json")
 def manifest():
     return JSONResponse({"name":"ThaiShake 41","short_name":"ThaiShake","start_url":"/app","display":"standalone","background_color":"#0a192f","theme_color":"#00ff88","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]})
-
 @app.get("/icon.png")
 def get_icon():
     if os.path.exists("icon.png"): return FileResponse("icon.png")
     return RedirectResponse("https://cdn-icons-png.flaticon.com/512/3383/3383076.png")
-
 @app.get("/app", response_class=HTMLResponse)
 def app_page():
     return """<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>ThaiShake 41</title><link rel="manifest" href="/manifest.json"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:58vh}#list{height:42vh;overflow:auto;padding:10px}.card{background:#112240;padding:6px;margin:4px 0;border-radius:6px;display:flex;justify-content:space-between;font-size:13px}#top{padding:8px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:6px 10px;border-radius:5px;font-weight:bold}.legend{background:rgba(255,255,255,0.95);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px}.legend i{width:12px;height:12px;float:left;margin-right:6px;border-radius:50%;margin-top:2px}.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}</style></head><body><div id="top"><b>🇹🇭 ThaiShake 41 - NAMOM v5</b><button onclick="load()">🔄 Refresh</button><span id="count"></span></div><div id="map"></div><div id="list">Loading 41 stations...</div><script>
 var map=L.map('map').setView([13.2,101.0],5.8);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);var markers={};
 function getColor(g){
-  if(g==null) return "#8a9bb0"; // เทาฟ้าจางๆ สบายตา สำหรับ OFFLINE
+  if(g==null) return "#6b7d93";
   var gal=g*980.665;
   if(gal<2.9) return "#00C853";
   if(gal<29.4) return "#FFD600";
@@ -139,11 +134,10 @@ function getColor(g){
   if(gal<392) return "#FF0000";
   return "#8B0000";
 }
-function load(){fetch('/api/v1/shake').then(r=>r.json()).then(data=>{var html='';data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));document.getElementById('count').innerText=data.length+' stations';data.forEach(s=>{var rad=s.sta=="NAMOM"?14:8;if(!markers[s.sta])markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad,fillOpacity:0.35,weight:1}).addTo(map);var c=getColor(s.pga_g);var isOff=s.pga_g==null;markers[s.sta].setStyle({fillColor:c,color:isOff?"#5a6b80":c,fillOpacity:isOff?0.35:0.9,opacity:isOff?0.5:0.9,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}<br>${s.status}`);html+=`<div class="card" style="border-left:4px solid ${c};opacity:${isOff?0.6:1}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}</b></span></div>`;});document.getElementById('list').innerHTML=html;});}load();setInterval(load,60000);
+function load(){fetch('/api/v1/shake').then(r=>r.json()).then(data=>{var html='';data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));document.getElementById('count').innerText=data.length+' stations';data.forEach(s=>{var rad=s.sta=="NAMOM"?14:8;if(!markers[s.sta])markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad,fillOpacity:0.6,weight:1}).addTo(map);var c=getColor(s.pga_g);var isOff=s.pga_g==null;markers[s.sta].setStyle({fillColor:c,color:isOff?"#4a5a6b":c,fillOpacity:isOff?0.6:0.9,opacity:isOff?0.7:0.9,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}<br>${s.status}`);html+=`<div class="card" style="border-left:4px solid ${c};opacity:${isOff?0.8:1}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}</b></span></div>`;});document.getElementById('list').innerHTML=html;});}load();setInterval(load,60000);
 var gulfIcon=L.divIcon({className:'',html:'<div class="watermark-gulf">ThaiShake NAMOM</div>',iconSize:[460,50],iconAnchor:[230,25]});L.marker([10.8,100.7],{icon:gulfIcon,interactive:false}).addTo(map);
-var legend=L.control({position:'bottomright'});legend.onAdd=function(){var d=L.DomUtil.create('div','legend');d.innerHTML='<b>PGA (gal)</b><br><i style="background:#00C853"></i>0-2.9 ปกติ<br><i style="background:#FFD600"></i>2.9-29.4 รู้สึก<br><i style="background:#FF9100"></i>29.4-60.7 สั่น<br><i style="background:#FF4500"></i>60.7-200.9 แรง<br><i style="background:#FF0000"></i>200.9-392 เสียหาย<br><i style="background:#8B0000"></i>>392 วิกฤติ<br><i style="background:#8a9bb0"></i>OFFLINE';return d;};legend.addTo(map);
+var legend=L.control({position:'bottomright'});legend.onAdd=function(){var d=L.DomUtil.create('div','legend');d.innerHTML='<b>PGA (gal)</b><br><i style="background:#00C853"></i>0-2.9 ปกติ<br><i style="background:#FFD600"></i>2.9-29.4 รู้สึก<br><i style="background:#FF9100"></i>29.4-60.7 สั่น<br><i style="background:#FF4500"></i>60.7-200.9 แรง<br><i style="background:#FF0000"></i>200.9-392 เสียหาย<br><i style="background:#8B0000"></i>>392 วิกฤติ<br><i style="background:#6b7d93"></i>OFFLINE';return d;};legend.addTo(map);
 </script></body></html>"""
-
 @app.get("/")
 def root(): return RedirectResponse("/app")
 if __name__ == "__main__":
