@@ -56,7 +56,7 @@ ESP32 = {"pga_g":0.000015,"updated":0}
 
 def fetch_all():
     global CACHE
-    t2=UTCDateTime.now(); t1=t2-120
+    t2=UTCDateTime.now(); t1=t2-300
     out=[]
     for s in STATIONS:
         if s.get("is_yours"):
@@ -64,8 +64,8 @@ def fetch_all():
             continue
         try:
             c = get_client(s["net"])
-            inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2, timeout=15)
-            st=c.get_waveforms(s["net"],s["sta"],"*","HHZ",t1,t2, timeout=15)
+            inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2)
+            st=c.get_waveforms(s["net"],s["sta"],"*","HHZ",t1,t2)
             st.attach_response(inv)
             st.remove_response(output="ACC",pre_filt=(0.1,0.2,45,50))
             pga=float(np.max(np.abs(st[0].data))/9.80665)
