@@ -6,7 +6,7 @@ import numpy as np, time, os, threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = FastAPI(title="ThaiShake 41")
-#ล่าสุด V6.1
+
 CLIENTS = {
     "TM": Client("EARTHSCOPE"),
     "MY": Client("EARTHSCOPE"),
@@ -65,19 +65,24 @@ STATIONS = [
 
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
-
 def fetch_one(s):
     if s.get("is_yours"):
         return {**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"}
     try:
-        c = get_client(s["net"])
-        t2=UTCDateTime.now(); t1=t2-60 # ลดเหลือ 60 วิพอ จะเร็วขึ้นมาก
+        # สำคัญ: สร้าง Client ใหม่ใน thread ตัวเอง
+        if s["net"] == "GE":
+            c = Client("GEOFON", timeout=20)
+        else:
+            c = Client("IRIS", timeout=20)
+
+        t2=UTCDateTime.now(); t1=t2-30 # ลดเหลือ 30 วิ
         chan = s.get("chan","HHZ")
         pre_filt = (0.1,0.2,20,25) if "HN" in chan else (0.1,0.2,45,50)
+
+        # ใส่ timeout และไม่ดึง level=response ทั้งหมดถ้าไม่จำเป็น
         inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2)
-        st=c.get_waveforms(s["net"],s["sta"],"*",chan,t1,t2)
-        st.attach_response(inv)
-        st.remove_response(output="ACC",pre_filt=pre_filt)
+        st=c.get_waveforms(s["net"],s["sta"],"*",chan,t1,t2, timeout=20)
+        st.remove_response(inventory=inv, output="ACC", pre_filt=pre_filt)
         pga=float(np.max(np.abs(st[0].data))/9.80665)
         return {**s,"pga_g":pga,"pga_gal":pga*980.665,"status":"ONLINE"}
     except Exception as e:
@@ -86,13 +91,15 @@ def fetch_one(s):
 
 def fetch_all():
     global CACHE
+    print(f"START FETCH {len(STATIONS)} stations")
+    t_start = time.time()
     out=[]
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        futures = [executor.submit(fetch_one, s) for s in STATIONS]
+    with ThreadPoolExecutor(max_workers=30) as executor: # เพิ่มเป็น 30
+        futures = {executor.submit(fetch_one, s): s for s in STATIONS}
         for f in as_completed(futures):
             out.append(f.result())
     CACHE={"data":out,"time":time.time()}
-    print(f"Fetch done {len(out)} stations")
+    print(f"DONE in {time.time()-t_start:.1f}s - {len(out)} stations")
 
 @app.get("/api/v1/shake")
 def get_shake(force: int = 0):
