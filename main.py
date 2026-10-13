@@ -50,9 +50,11 @@ STATIONS = [
  {"net":"RM","sta":"SLV","lat":21.325,"lon":103.906,"chan":"HHZ"},
  {"net":"TM","sta":"NAMOM","lat":6.9,"lon":100.54,"is_yours":True,"chan":"HHZ"},
 ]
+IS_FETCHING = False
 
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
+
 
 def fetch_one(s):
     if s.get("is_yours"):
@@ -77,17 +79,23 @@ def fetch_one(s):
         return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
 
 def fetch_all():
-    global CACHE
-    print(f"START FETCH {len(STATIONS)} stations")
-    t_start = time.time()
-    out=[]
-    with ThreadPoolExecutor(max_workers=30) as executor:
-        futures = {executor.submit(fetch_one, s): s for s in STATIONS}
-        for f in as_completed(futures):
-            out.append(f.result())
-    CACHE={"data":out,"time":time.time()}
-    print(f"DONE in {time.time()-t_start:.1f}s - {len(out)} stations")
-
+    global CACHE, IS_FETCHING
+    if IS_FETCHING:
+        print("SKIP - already fetching")
+        return
+    IS_FETCHING = True
+    try:
+        print(f"START FETCH {len(STATIONS)} stations")
+        t_start = time.time()
+        out=[]
+        with ThreadPoolExecutor(max_workers=10) as executor: # แก้จาก 30 เป็น 10
+            futures = {executor.submit(fetch_one, s): s for s in STATIONS}
+            for f in as_completed(futures):
+                out.append(f.result())
+        CACHE={"data":out,"time":time.time()}
+        print(f"DONE in {time.time()-t_start:.1f}s")
+    finally:
+        IS_FETCHING = False
 @app.get("/api/v1/shake")
 def get_shake(force: int = 0):
     if force==1:
@@ -95,7 +103,7 @@ def get_shake(force: int = 0):
         threading.Thread(target=fetch_all, daemon=True).start()
         if CACHE["data"]: return CACHE["data"]
     if CACHE["data"]:
-        if time.time()-CACHE["time"] > 30:
+        if time.time()-CACHE["time"] > 90:
             threading.Thread(target=fetch_all, daemon=True).start()
         for s in CACHE["data"]:
             if s["sta"]=="NAMOM":
