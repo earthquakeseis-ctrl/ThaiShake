@@ -6,7 +6,7 @@ import numpy as np, time, os, threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = FastAPI(title="ThaiShake 41")
-
+#ล่าสุด V6.1
 CLIENTS = {
     "TM": Client("EARTHSCOPE"),
     "MY": Client("EARTHSCOPE"),
