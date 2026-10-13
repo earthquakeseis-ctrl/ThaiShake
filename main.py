@@ -7,18 +7,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = FastAPI(title="ThaiShake 41")
 
-CLIENTS = {
-    "TM": Client("EARTHSCOPE"),
-    "MY": Client("EARTHSCOPE"),
-    "MM": Client("EARTHSCOPE"),
-    "PS": Client("EARTHSCOPE"),
-    "GE": Client("GEOFON"),
-    "IN": Client("EARTHSCOPE"),
-    "RM": Client("EARTHSCOPE"),
-}
-def get_client(net):
-    return CLIENTS.get(net, Client("EARTHSCOPE"))
-
 STATIONS = [
  {"net":"TM","sta":"CHBT","lat":12.74,"lon":102.35,"chan":"HHZ"},
  {"net":"TM","sta":"CMMT","lat":18.8128,"lon":98.9476,"chan":"HHZ"},
@@ -65,27 +53,26 @@ STATIONS = [
 
 CACHE = {"data":None,"time":0}
 ESP32 = {"pga_g":0.000015,"updated":0}
+
 def fetch_one(s):
     if s.get("is_yours"):
         return {**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"}
     try:
-        # สำคัญ: สร้าง Client ใหม่ใน thread ตัวเอง
-        if s["net"] == "GE":
-            c = Client("GEOFON", timeout=20)
-        else:
-            c = Client("IRIS", timeout=20)
-
-        t2=UTCDateTime.now(); t1=t2-30 # ลดเหลือ 30 วิ
+        base = "GEOFON" if s["net"]=="GE" else "EARTHSCOPE"
+        c = Client(base, timeout=15)
+        t2=UTCDateTime.now(); t1=t2-30
         chan = s.get("chan","HHZ")
         pre_filt = (0.1,0.2,20,25) if "HN" in chan else (0.1,0.2,45,50)
-
-        # ใส่ timeout และไม่ดึง level=response ทั้งหมดถ้าไม่จำเป็น
+        st=c.get_waveforms(s["net"],s["sta"],"*",chan,t1,t2)
+        if len(st)==0:
+            raise Exception("No data 204")
         inv=c.get_stations(network=s["net"],station=s["sta"],level="response",starttime=t1,endtime=t2)
-        st=c.get_waveforms(s["net"],s["sta"],"*",chan,t1,t2, timeout=20)
         st.remove_response(inventory=inv, output="ACC", pre_filt=pre_filt)
         pga=float(np.max(np.abs(st[0].data))/9.80665)
         return {**s,"pga_g":pga,"pga_gal":pga*980.665,"status":"ONLINE"}
     except Exception as e:
+        if "204" in str(e) or "No data" in str(e):
+            return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
         print(f"FAIL {s['sta']} {e}")
         return {**s,"pga_g":None,"pga_gal":0,"status":"OFFLINE"}
 
@@ -94,7 +81,7 @@ def fetch_all():
     print(f"START FETCH {len(STATIONS)} stations")
     t_start = time.time()
     out=[]
-    with ThreadPoolExecutor(max_workers=30) as executor: # เพิ่มเป็น 30
+    with ThreadPoolExecutor(max_workers=30) as executor:
         futures = {executor.submit(fetch_one, s): s for s in STATIONS}
         for f in as_completed(futures):
             out.append(f.result())
@@ -106,15 +93,13 @@ def get_shake(force: int = 0):
     if force==1:
         CACHE["time"]=0
         threading.Thread(target=fetch_all, daemon=True).start()
-        if CACHE["data"]:
-            return CACHE["data"]
+        if CACHE["data"]: return CACHE["data"]
     if CACHE["data"]:
         if time.time()-CACHE["time"] > 30:
             threading.Thread(target=fetch_all, daemon=True).start()
         for s in CACHE["data"]:
             if s["sta"]=="NAMOM":
-                s["pga_g"]=ESP32["pga_g"]
-                s["pga_gal"]=ESP32["pga_g"]*980.665
+                s["pga_g"]=ESP32["pga_g"]; s["pga_gal"]=ESP32["pga_g"]*980.665
         return CACHE["data"]
     temp=[]
     for s in STATIONS:
@@ -122,30 +107,25 @@ def get_shake(force: int = 0):
             temp.append({**s,"pga_g":ESP32["pga_g"],"pga_gal":ESP32["pga_g"]*980.665,"status":"ESP32 NAMOM"})
         else:
             temp.append({**s,"pga_g":None,"pga_gal":0,"status":"loading..."})
-    CACHE["data"]=temp
-    CACHE["time"]=time.time()-70
+    CACHE["data"]=temp; CACHE["time"]=time.time()-70
     threading.Thread(target=fetch_all, daemon=True).start()
     return temp
 
 @app.get("/api/v1/push")
 def push(pga_g: float):
-    ESP32["pga_g"]=pga_g
-    ESP32["updated"]=time.time()
-    return {"ok":True}
+    ESP32["pga_g"]=pga_g; ESP32["updated"]=time.time(); return {"ok":True}
 
 @app.get("/manifest.json")
 def manifest():
     return JSONResponse({"name":"ThaiShake 41","short_name":"ThaiShake","start_url":"/app","display":"standalone","background_color":"#0a192f","theme_color":"#00ff88","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]})
 @app.get("/icon.png")
 def get_icon():
-    if os.path.exists("icon.png"):
-        return FileResponse("icon.png")
+    if os.path.exists("icon.png"): return FileResponse("icon.png")
     return RedirectResponse("https://cdn-icons-png.flaticon.com/512/3383/3383076.png")
 @app.get("/app", response_class=HTMLResponse)
 def app_page():
-    return """<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>ThaiShake 41</title><link rel="manifest" href="/manifest.json"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:58vh}#list{height:42vh;overflow:auto;padding:10px}.card{background:#112240;padding:6px;margin:4px 0;border-radius:6px;display:flex;justify-content:space-between;font-size:13px}#top{padding:8px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:6px 10px;border-radius:5px;font-weight:bold;cursor:pointer}.legend{background:rgba(255,255,255,0.95);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px}.legend i{width:12px;height:12px;float:left;margin-right:6px;border-radius:50%;margin-top:2px}.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}</style></head><body><div id="top"><b>🇹🇭 ThaiShake 41 - NAMOM V6.1 Fast</b><button onclick="load(true)">🔄 Refresh</button><span id="count"></span></div><div id="map"></div><div id="list">Loading 41 stations...</div><script> var map=L.map('map').setView([13.2,101.0],5.8);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);var markers={}; function getColor(g){if(g==null) return "#6b7d93";var gal=g*980.665;if(gal<2.9) return "#00C853";if(gal<29.4) return "#FFD600";if(gal<60.7) return "#FF9100";if(gal<200.9) return "#FF4500";if(gal<392) return "#FF0000";return "#8B0000";} function load(force=false){var url='/api/v1/shake'+(force?'?force=1&t='+Date.now():'');fetch(url).then(r=>r.json()).then(data=>{var html='';data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));document.getElementById('count').innerText=data.length+' stations';data.forEach(s=>{var rad=s.sta=="NAMOM"?14:8;if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map);var c=getColor(s.pga_g);var isOff=s.pga_g==null;markers[s.sta].setStyle({fillColor:c,color:isOff?"#4a5a6b":c,weight:1,fillOpacity:0.9,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}<br>${s.status}`);html+=`<div class="card" style="border-left:4px solid ${c}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}</b></span></div>`;});document.getElementById('list').innerHTML=html;});} load();setInterval(()=>load(false),30000); var gulfIcon=L.divIcon({className:'',html:'<div class="watermark-gulf">ThaiShake NAMOM</div>',iconSize:[460,50],iconAnchor:[230,25]});L.marker([10.8,100.7],{icon:gulfIcon,interactive:false}).addTo(map); var legend=L.control({position:'bottomright'});legend.onAdd=function(){var d=L.DomUtil.create('div','legend');d.innerHTML='<b>PGA (gal)</b><br><i style="background:#00C853"></i>0-2.9 ปกติ/ไม่รู้สึก<br><i style="background:#FFD600"></i>2.9-29.4 อาจรู้สึก<br><i style="background:#FF9100"></i>29.4-60.7 สิ่งของสั่น<br><i style="background:#FF4500"></i>60.7-200.9 แรง/ยืนลำบาก<br><i style="background:#FF0000"></i>200.9-392 อาคารเสียหาย<br><i style="background:#8B0000"></i>>392 วิกฤติ/อาคารถล่ม<br><i style="background:#6b7d93"></i>OFFLINE';return d;};legend.addTo(map); </script></body></html>"""
+    return """<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>ThaiShake 41</title><link rel="manifest" href="/manifest.json"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>body{margin:0;font-family:sans-serif;background:#0a192f;color:white}#map{height:58vh}#list{height:42vh;overflow:auto;padding:10px}.card{background:#112240;padding:6px;margin:4px 0;border-radius:6px;display:flex;justify-content:space-between;font-size:13px}#top{padding:8px;display:flex;justify-content:space-between;align-items:center}button{background:#00ff88;border:none;padding:6px 10px;border-radius:5px;font-weight:bold;cursor:pointer}.legend{background:rgba(255,255,255,0.95);color:#111;padding:8px 10px;border-radius:8px;line-height:18px;font-size:11px}.legend i{width:12px;height:12px;float:left;margin-right:6px;border-radius:50%;margin-top:2px}.watermark-gulf{font-size:48px;font-weight:900;color:rgba(0,255,136,0.18);transform:rotate(-18deg);font-family:Arial Black,sans-serif;letter-spacing:6px;white-space:nowrap;pointer-events:none}</style></head><body><div id="top"><b>🇹🇭 ThaiShake 41 - NAMOM V6.2b</b><button onclick="load(true)">🔄 Refresh</button><span id="count"></span></div><div id="map"></div><div id="list">Loading 41 stations...</div><script> var map=L.map('map').setView([13.2,101.0],5.8);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);var markers={}; function getColor(g){if(g==null) return "#6b7d93";var gal=g*980.665;if(gal<2.9) return "#00C853";if(gal<29.4) return "#FFD600";if(gal<60.7) return "#FF9100";if(gal<200.9) return "#FF4500";if(gal<392) return "#FF0000";return "#8B0000";} function load(force=false){var url='/api/v1/shake'+(force?'?force=1&t='+Date.now():'');fetch(url).then(r=>r.json()).then(data=>{var html='';data.sort((a,b)=>(b.pga_g||-1)-(a.pga_g||-1));document.getElementById('count').innerText=data.length+' stations';data.forEach(s=>{var rad=s.sta=="NAMOM"?14:8;if(!markers[s.sta]) markers[s.sta]=L.circleMarker([s.lat,s.lon],{radius:rad}).addTo(map);var c=getColor(s.pga_g);var isOff=s.pga_g==null;markers[s.sta].setStyle({fillColor:c,color:isOff?"#4a5a6b":c,weight:1,fillOpacity:0.9,radius:rad}).bindPopup(`<b>${s.sta}</b><br>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}<br>${s.status}`);html+=`<div class="card" style="border-left:4px solid ${c}"><span><b>${s.sta}</b> <small>${s.status}</small></span><span style="color:${c}"><b>${s.pga_g!=null?s.pga_g.toExponential(2)+' g':'OFFLINE'}</b></span></div>`;});document.getElementById('list').innerHTML=html;});} load();setInterval(()=>load(false),30000); var gulfIcon=L.divIcon({className:'',html:'<div class="watermark-gulf">ThaiShake NAMOM</div>',iconSize:[460,50],iconAnchor:[230,25]});L.marker([10.8,100.7],{icon:gulfIcon,interactive:false}).addTo(map); var legend=L.control({position:'bottomright'});legend.onAdd=function(){var d=L.DomUtil.create('div','legend');d.innerHTML='<b>PGA (gal)</b><br><i style="background:#00C853"></i>0-2.9 ปกติ/ไม่รู้สึก<br><i style="background:#FFD600"></i>2.9-29.4 อาจรู้สึก<br><i style="background:#FF9100"></i>29.4-60.7 สิ่งของสั่น<br><i style="background:#FF4500"></i>60.7-200.9 แรง/ยืนลำบาก<br><i style="background:#FF0000"></i>200.9-392 อาคารเสียหาย<br><i style="background:#8B0000"></i>>392 วิกฤติ/อาคารถล่ม<br><i style="background:#6b7d93"></i>OFFLINE';return d;};legend.addTo(map); </script></body></html>"""
 @app.get("/")
-def root():
-    return RedirectResponse("/app")
+def root(): return RedirectResponse("/app")
 if __name__ == "__main__":
     import uvicorn; uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
